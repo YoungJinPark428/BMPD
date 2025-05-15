@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     
@@ -103,6 +104,10 @@
         }
         #shareButton {
             background-color: #4267B2;
+            color: white;
+        }
+        #uploadButton {
+            background-color: #962527;
             color: white;
         }
     </style>
@@ -309,6 +314,7 @@
                 <div>
                     <button id="copyButton" class="button" onclick="copyText()">복사하기</button>
                     <button id="shareButton" class="button" onclick="shareContent()">공유하기</button>
+                    <button id="uploadButton" class="button" onclick="uploadContent()">업로드하기 (부동내역 限)</button>
                 </div>
             </div>
         </div>
@@ -779,6 +785,41 @@ document.getElementById('trouble-unit').addEventListener('change', function () {
                     alert('클립보드 복사에 실패했습니다. 수동으로 텍스트를 선택하여 복사하세요.');
                 });
         }
+
+  async function uploadContent() {
+    const resultText = document.getElementById('resultText').innerText;
+
+    // 텍스트가 부동내역 공유 양식인지 확인
+    if (!resultText.startsWith('♧부동&작업 공유')) {
+      alert('부동내역 공유 내용만 업로드할 수 있습니다.');
+      return;
+    }
+
+    // Google Apps Script 웹 앱 URL (이건 사용자가 설정해야 함)
+    const scriptUrl = "https://script.google.com/macros/s/AKfycbyhGnWLPWhlsib5gSe58uei1BxFxXXbpOzy_14T4jyCa1O2tibXOCs1cnDXqg2lMn1gGA/exec";
+
+    try {
+      const response = await fetch(scriptUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: resultText }),
+      });
+
+      const result = await response.text();
+
+      if (response.ok) {
+        alert("업로드가 완료되었습니다.");
+      } else {
+        alert("업로드 실패: " + result);
+      }
+    } catch (error) {
+      console.error("업로드 중 오류 발생:", error);
+      alert("업로드 중 오류가 발생했습니다.");
+    }
+  }
+
     </script>
 
 
