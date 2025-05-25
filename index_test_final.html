@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>BMPD Trouble 공유</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    #resultText { white-space: pre-line; border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>♧ Trouble 공유 양식</h1>
+
+  <div id="resultText">♧부동&작업 공유
+Site: ABC
+호기: 123
+Machine: XYZ
+Unit: A1</div>
+
+  <button id="uploadButton" onclick="uploadContent()">📤 업로드</button>
+
+  <script>
+    async function uploadContent() {
+      const resultText = document.getElementById('resultText').innerText.trim();
+
+      if (!resultText.startsWith("♧부동&작업 공유")) {
+        alert("⚠️ '부동&작업 공유'로 시작하는 텍스트만 업로드할 수 있습니다.");
+        return;
+      }
+
+      const firebaseFunctionUrl = "https://us-central1-bmpd-backend.cloudfunctions.net/appendToSheet";
+
+      try {
+        const response = await fetch(firebaseFunctionUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: resultText }),
+        });
+
+        const result = await response.text();
+        if (response.ok) {
+          alert("✅ 업로드 완료: " + result);
+        } else {
+          alert("❌ 업로드 실패: " + result);
+        }
+      } catch (err) {
+        console.error("업로드 중 오류:", err);
+        alert("❌ 업로드 중 오류 발생: " + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
