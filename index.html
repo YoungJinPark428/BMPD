@@ -3,7 +3,7 @@
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PRI L&S 파라변경/부동내역 공유 양식</title>
+    <title>Final Test!!! PRI L&S 파라변경/부동내역 공유 양식</title>
     <style>
         body {
             font-family: 'Malgun Gothic', sans-serif;
@@ -107,6 +107,10 @@
             color: white;
         }
         #uploadButton {
+            background-color: #962527;
+            color: white;
+        }
+        #openButton {
             background-color: #962527;
             color: white;
         }
@@ -314,7 +318,8 @@
                 <div>
                     <button id="copyButton" class="button" onclick="copyText()">복사하기</button>
                     <button id="shareButton" class="button" onclick="shareContent()">공유하기</button>
-                    <button id="uploadButton" class="button" onclick="uploadContent()">업로드하기 (사용불가)</button>
+                    <button id="uploadButton" class="button" onclick="uploadContent()">업로드하기 (구글 스프레드시트)</button>
+                    <button id="openButton" class="button" onclick="openContent()">부동내역 시트</button>
                 </div>
             </div>
         </div>
@@ -325,6 +330,62 @@
     </div>
 
     <script>
+
+
+  async function uploadContent() {
+    const resultText = document.getElementById('resultText').innerText.trim();
+
+    // 형식 확인
+    if (!resultText.startsWith("[부동&작업 공유]")) {
+      alert("⚠️ '부동&작업 공유' 양식만 업로드할 수 있습니다.");
+      return;
+    }
+
+    // 줄 단위로 분해
+    const lines = resultText.split('\n').map(line => line.trim());
+    const getValue = (label) => {
+      const line = lines.find(line => line.startsWith(label));
+      return line ? line.replace(label, '').trim() : '';
+    };
+
+    const data = {
+      type: getValue("종류:"),
+      site: getValue("0. Site :"),
+      machine: getValue("1. 호기 :"),
+      process: getValue("2-1. Machine :"),
+      unit: getValue("2-2. Unit :"),
+      assy: getValue("2-3. Assy' :"),
+      time: getValue("3-1. 발생시간 :"),
+      complete: getValue("3-2. 조치완료 :"),
+      worker: getValue("4. 작업자 :"),
+      problem: getValue("5. 현상 :"),
+      reason: getValue("6. 원인 :"),
+      action: getValue("7. 조치 :")
+    };
+
+    try {
+      const response = await fetch("https://appendtosheet-ymlfqhclja-uc.a.run.app", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      const text = await response.text();
+
+      if (response.ok) {
+        alert("✅ 업로드 성공: " + text);
+      } else {
+        alert("❌ 업로드 실패: " + text);
+      }
+    } catch (error) {
+      console.error("업로드 오류:", error);
+      alert("❌ 업로드 중 오류 발생: " + error.message);
+    }
+  }
+
+
+
+
 
 document.getElementById('para-site').addEventListener('change', function () {
     const site = this.value;
@@ -786,34 +847,8 @@ document.getElementById('trouble-unit').addEventListener('change', function () {
                 });
         }
 
-  async function uploadContent() {
-  const resultText = document.getElementById('resultText').innerText;
-
-  // 부동내역 양식인지 확인
-  if (!resultText.startsWith('♧부동&작업 공유')) {
-    alert('부동내역 공유 내용만 업로드할 수 있습니다.');
-    return;
-  }
-
-  const scriptUrl = "https://script.google.com/macros/s/AKfycbzR6-eUvwxHSa_4pM9AG0P4GX4cUrRWkG0XmQlxX_fdl4zqEDjCn_PuXjlDInGiCOnI5w/exec";
-
-  try {
-    await fetch(scriptUrl, {
-      method: "POST",
-      mode: "no-cors", // 핵심: CORS 오류 우회
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ content: resultText }),
-    });
-
-    // no-cors 모드에서는 응답 확인 불가 → 무조건 성공이라고 간주
-    alert("업로드 요청이 전송되었습니다.\nGoogle Sheet를 직접 확인해 주세요.");
-
-  } catch (error) {
-    console.error("업로드 중 오류 발생:", error);
-    alert("업로드 중 오류가 발생했습니다.");
-  }
+function openContent() {
+  window.open("https://docs.google.com/spreadsheets/d/1OUhTAF6qU_0rWP_oPwtGOS-cczSPaPxhJQzpw0L1xro/edit?usp=sharing", "_blank");
 }
 
     </script>
