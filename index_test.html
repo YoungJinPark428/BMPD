@@ -3,7 +3,7 @@
 <html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>test PRI L&S 파라변경/부동내역 공유 양식</title>
+    <title>Final Test!!! PRI L&S 파라변경/부동내역 공유 양식</title>
     <style>
         body {
             font-family: 'Malgun Gothic', sans-serif;
@@ -107,6 +107,10 @@
             color: white;
         }
         #uploadButton {
+            background-color: #962527;
+            color: white;
+        }
+        #openButton {
             background-color: #962527;
             color: white;
         }
@@ -314,7 +318,8 @@
                 <div>
                     <button id="copyButton" class="button" onclick="copyText()">복사하기</button>
                     <button id="shareButton" class="button" onclick="shareContent()">공유하기</button>
-                    <button id="uploadButton" class="button" onclick="uploadContent()">업로드하기 (사용불가)</button>
+                    <button id="uploadButton" class="button" onclick="uploadContent()">업로드하기 (구글 스프레드시트)</button>
+                    <button id="openButton" class="button" onclick="openContent()">부동내역 시트</button>
                 </div>
             </div>
         </div>
@@ -841,6 +846,10 @@ document.getElementById('trouble-unit').addEventListener('change', function () {
                     alert('클립보드 복사에 실패했습니다. 수동으로 텍스트를 선택하여 복사하세요.');
                 });
         }
+
+function openContent() {
+  window.open("https://docs.google.com/spreadsheets/d/1OUhTAF6qU_0rWP_oPwtGOS-cczSPaPxhJQzpw0L1xro/edit?usp=sharing", "_blank");
+}
 
     </script>
 
