@@ -107,7 +107,7 @@
             color: white;
         }
         #uploadButton {
-            background-color: #962527;
+            background-color: #4267B2;
             color: white;
         }
         #openButton {
@@ -317,8 +317,7 @@
                 <p id="resultText"></p>
                 <div>
                     <button id="copyButton" class="button" onclick="copyText()">복사하기</button>
-                    <button id="shareButton" class="button" onclick="shareContent()">공유하기</button>
-                    <button id="uploadButton" class="button" onclick="uploadContent()">업로드하기 (구글 스프레드시트)</button>
+                    <button id="uploadButton" class="button" onclick="uploadContent()">업로드 및 공유하기</button>
                     <button id="openButton" class="button" onclick="openContent()">부동내역 시트</button>
                 </div>
             </div>
@@ -374,6 +373,7 @@
 
       if (response.ok) {
         alert("✅ 업로드 성공: " + text);
+        shareContent();
       } else {
         alert("❌ 업로드 실패: " + text);
       }
