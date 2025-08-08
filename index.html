@@ -167,12 +167,12 @@
                 <div class="form-group">
                     <label for="para-process">2-1. Machine :</label>
                     <select id="para-process">
-                        <option value="-">-</option>
+                        <!-- <option value="-">-</option>
                         <option value="Electrode Supply">Electrode Supply</option>
                         <option value="Lamination">Lamination</option>
                         <option value="D-Stacking">D-Stacking</option>
                         <option value="Taper">Taper</option>
-                        <option value="Inspection">Inspection</option>
+                        <option value="Inspection">Inspection</option> -->
                     </select>
                 </div>
 
@@ -199,25 +199,26 @@
                     <input type="datetime-local" id="para-time">
                 </div>
                 <div class="form-group">
-                    <label for="para-parameter">4. 변경Para :</label>
+                    <label for="para-worker">4. 변경자 :</label>
+                    <input type="text" id="para-worker" placeholder="작업자 이름">
+                </div>
+                <div class="form-group">
+                    <label for="para-parameter">5. 변경Para :</label>
                     <input type="text" id="para-parameter" placeholder="변경 파라미터 입력">
                 </div>
                 <div class="form-group">
-                    <label for="para-before">5. 이전값 :</label>
+                    <label for="para-before">6. 이전값 :</label>
                     <input type="text" id="para-before" placeholder="이전 값 입력">
                 </div>
                 <div class="form-group">
-                    <label for="para-after">6. 변경값 :</label>
+                    <label for="para-after">7. 변경값 :</label>
                     <input type="text" id="para-after" placeholder="변경 값 입력">
-                </div>
-                <div class="form-group">
-                    <label for="para-worker">7. 변경자 :</label>
-                    <input type="text" id="para-worker" placeholder="작업자 이름">
                 </div>
                 <div class="form-group">
                     <label for="para-reason">8. 변경사유 :</label>
                     <textarea id="para-reason" placeholder="변경 사유 입력"></textarea>
                 </div>
+                
                 <button class="button" onclick="generateParameterText()">양식 생성하기</button>
             </div>
             
@@ -337,28 +338,41 @@ const siteToProcess = {
 
 const siteEl = document.getElementById('trouble-site');
 const procEl = document.getElementById('trouble-process');
+const siteE2 = document.getElementById('para-site');
+const procE2 = document.getElementById('para-process');
 
 // site 변경 시 process 옵션 업데이트 함수
 function updateProcessOptions() {
-  // siteToProcess[site] 가 없으면 default 사용
-  const list = siteToProcess[siteEl.value] || siteToProcess.default;
+    // siteToProcess[site] 가 없으면 default 사용
+    const list = siteToProcess[siteEl.value] || siteToProcess.default;
+    const list_para = siteToProcess[siteE2.value] || siteToProcess.default;
 
-  // 기존 옵션 초기화
-  procEl.innerHTML = '';
-  procEl.appendChild(new Option('-', '-'));
+    // 기존 옵션 초기화
+    procEl.innerHTML = '';
+    procEl.appendChild(new Option('-', '-'));
 
-  // 새로 정의된 옵션 삽입
-  list.forEach(p => {
-    procEl.appendChild(new Option(p, p));
-  });
+    procE2.innerHTML = '';
+    procE2.appendChild(new Option('-', '-'));
 
-  // 선택 초기화
-  procEl.value = '-';
+    // 새로 정의된 옵션 삽입
+    list.forEach(p => {
+        procEl.appendChild(new Option(p, p));
+    });
+
+    list_para.forEach(p => {
+        procE2.appendChild(new Option(p, p));
+    });
+
+    // 선택 초기화
+    procEl.value = '-';
+    procE2.value = '-';
 }
 
 // 페이지 로드시와 site 변경 시에 호출
 siteEl.addEventListener('change', updateProcessOptions);
-updateProcessOptions();  // 최초 로드시에도 적용
+siteE2.addEventListener('change',
+updateProcessOptions);
+updateProcessOptions(); // 최초 로드시에도 적용
 
 
 
@@ -1265,16 +1279,17 @@ document.getElementById('trouble-unit').addEventListener('change', function () {
             const reason = document.getElementById('para-reason').value;
             
             let text = `♣파라미터, IP 변경 공유\n`;
+            text += `종류: 파라미터 변경\n`;
             text += `0. Site : ${site}\n`;
             text += `1. 호기 : ${machine}\n`;
             text += `2-1. Machine : ${process}\n`;
             text += `2-2. Unit : ${unit}\n`;
             text += `2-3. Assy' : ${assy}\n`;
             text += `3. 변경시간 : ${time}\n`;
-            text += `4. 변경Para : ${parameter}\n`;
-            text += `5. 이전값 : ${before}\n`;
-            text += `6. 변경값 : ${after}\n`;
-            text += `7. 변경자 : ${worker}\n`;
+            text += `4. 변경자 : ${worker}\n`;
+            text += `5. 변경Para : ${parameter}\n`;
+            text += `6. 이전값 : ${before}\n`;
+            text += `7. 변경값 : ${after}\n`;
             text += `8. 변경사유 : ${reason}`;
             
             // 결과 표시
