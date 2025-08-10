@@ -366,6 +366,29 @@ siteEl.addEventListener('change', updateProcessOptions);
 siteE2.addEventListener('change', updateProcessOptions);
 updateProcessOptions();  // 최초 로드시에도 적용
 
+
+const GAS_URL   = 'https://script.google.com/macros/s/AKfycbwrC67urRNXDeHtBeIemzOREVg_gUCVUQXF6ZNXAuWln5r3SzT8gc_kJH--vlfEhddEWg/exec';
+const GAS_TOKEN = 'tok_vp3ZcWZbXo2l0o1mYqD7J9kF4sN8rA6uQ0wB2H5L';
+const MAIL_SUBJECT = 'PRI L&S 공유(자동 발송)';
+
+async function sendMailViaGAS(payload) {
+    try {
+        const res = await fetch(`${GAS_URL}?token=${encodeURIComponent(GAS_TOKEN)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 프리플라이트 회피
+            body: JSON.stringify({
+            subject: MAIL_SUBJECT,
+            body: JSON.stringify(payload, null, 2)   // ← data를 예쁘게 JSON으로
+            })
+        });
+
+        const data = await res.json().catch(() => ({ ok:false, error:'Invalid response' }));
+        return data;
+    } catch (e) {
+        return { ok:false, error: e.message };
+    }
+}
+
 async function uploadContent() {
   const resultText = document.getElementById('resultText').innerText.trim();
 
@@ -423,8 +446,19 @@ async function uploadContent() {
 
     const text = await response.text();
     if (response.ok) {
-      alert("✅ 공유 시트 업로드 성공: 카카오톡 톡방에 추가로 공유해주세요.");
-      shareContent();
+        alert("✅ 공유 시트 업로드 성공: 카카오톡 톡방에 추가로 공유해주세요.");
+
+        // ✅ 이메일 전송: 방금 만든 data 객체를 그대로 본문으로 보냄
+        const mailRes = await sendMailViaGAS(data);
+        if (!mailRes.ok) {
+            console.warn('메일 발송 실패:', mailRes.error);
+            alert('⚠️ 이메일 발송 실패: ' + (mailRes.error || 'unknown'));
+        } else {
+            alert("✅ 이메일 공유 완료: 카카오톡 톡방에 추가로 공유해주세요.");
+            console.log('메일 발송 완료');
+            shareContent();
+        }
+
     } else {
       alert("❌ 업로드 실패: " + text);
     }
