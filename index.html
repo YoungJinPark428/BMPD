@@ -114,6 +114,24 @@
             background-color: #962527;
             color: white;
         }
+        .alert-box {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: #333;
+            color: white;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none; /* 초기에는 숨김 */
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .alert-box.show {
+            display: block;
+            opacity: 1;
+        }
     </style>
     <!-- 카카오 SDK 제거 - Web Share API 사용 -->
 </head>
@@ -309,12 +327,25 @@
             </div>
             
             <!-- 결과 표시 영역 -->
-            <div id="result" class="result">
+            <!-- <div id="result" class="result">
                 <p id="resultText"></p>
                 <div>
                     <button id="uploadButton" class="button" onclick="uploadContent()">업로드 및 공유하기</button>
                     <button id="openButton" class="button" onclick="openContent()">부동내역 시트</button>
                 </div>
+            </div> -->
+
+            <div id="result" class="result">
+                <p id="resultText"></p>
+                <div id="statusMessage" style="display:none; text-align:center; color:#555;">⏳ 업로드 중...</div>
+                <div>
+                    <button id="uploadButton" class="button" onclick="uploadContent()">업로드 및 공유하기</button>
+                    <button id="openButton" class="button" onclick="openContent()">부동내역 시트</button>
+                </div>
+            </div>
+
+            <div id="status-alert" class="alert-box">
+                <span id="alert-message"></span>
             </div>
         </div>
         
@@ -371,150 +402,98 @@ updateProcessOptions();  // 최초 로드시에도 적용
 
 const MAIL_SUBJECT = 'PRI L&S 공유(자동 발송)';
 
+const statusMessage = document.getElementById('statusMessage');
+const resultText = document.getElementById('resultText');
 async function uploadContent() {
-    const resultBox = document.getElementById('result');
-    const resultText = document.getElementById('resultText').innerText.trim();
-    // const resultText = document.getElementById('resultText');
+    // 1. DOM 요소 가져오기
+    const uploadButton = document.getElementById('uploadButton');
+    const resultText = document.getElementById('resultText');
+    const statusAlert = document.getElementById('status-alert');
+    const alertMessage = document.getElementById('alert-message');
 
-    // 진행중 상태 표시
-    resultBox.style.display = 'block';
-    resultText.innerText = "⏳ 업로드 및 공유 진행 중...\n";
-
-    const lines = resultText.split('\n').map(line => line.trim());
+    // 2. 업로드 시작: 버튼 비활성화, 알림창 표시 및 메시지 설정
+    uploadButton.disabled = true;
+    alertMessage.innerText = '⏳ 업로드 및 공유 진행 중...';
+    statusAlert.classList.add('show');
+    
+    // 3. 결과 텍스트를 파싱하여 데이터 객체 생성
+    const lines = resultText.innerText.trim().split('\n').map(line => line.trim());
     const getValue = (label) => {
         const line = lines.find(line => line.startsWith(label));
         return line ? line.slice(label.length).trim() : '';
     };
 
-    const type = getValue("종류:");
-    const isTrouble = resultText.startsWith("[부동&작업 공유]");
-
+    const isTrouble = resultText.innerText.startsWith("[부동&작업 공유]");
     let data;
+
     if (isTrouble) {
         data = {
-        type: type,
-        site: getValue("0. Site :"),
-        machine: getValue("1. 호기 :"),
-        process: getValue("2-1. Machine :"),
-        unit: getValue("2-2. Unit :"),
-        assy: getValue("2-3. Assy' :"),
-        time: getValue("3-1. 발생시간 :"),
-        complete: getValue("3-2. 조치완료 :"),
-        worker: getValue("4. 작업자 :"),
-        problem: getValue("5. 현상 :"),
-        reason: getValue("6. 원인 :"),
-        action: getValue("7. 조치 :"),
+            type: getValue("종류:"),
+            site: getValue("0. Site :"),
+            machine: getValue("1-1. 호기 :"),
+            process: getValue("2-1. Machine :"),
+            unit: getValue("2-2. UNIT :"),
+            assy: getValue("2-3. Assy' :"),
+            time: getValue("3-1. 발생시간 :"),
+            complete: getValue("3-2. 조치완료 :"),
+            worker: getValue("4. 작업자 :"),
+            problem: getValue("5. 현상 :"),
+            reason: getValue("6. 원인 :"),
+            action: getValue("7. 조치 :"),
         };
     } else {
         data = {
-        type: type,
-        site: getValue("0. Site :"),
-        machine: getValue("1. 호기 :"),
-        process: getValue("2-1. Machine :"),
-        unit: getValue("2-2. Unit :"),
-        assy: getValue("2-3. Assy' :"),
-        time: getValue("3. 변경시간 :"),
-        complete: getValue("8. 변경사유 :"),
-        worker: getValue("4. 변경자 :"),
-        problem: getValue("5. 변경Para :"),
-        reason: getValue("6. 이전값 :"),
-        action: getValue("7. 변경값 :"),
+            type: 'Para/IP 변경',
+            site: getValue("0. Site :"),
+            machine: getValue("1. 호기 :"),
+            process: getValue("2-1. Machine :"),
+            unit: getValue("2-2. UNIT :"),
+            assy: getValue("2-3. Assy' :"),
+            time: getValue("3. 변경시간 :"),
+            complete: getValue("8. 변경사유 :"),
+            worker: getValue("4. 변경자 :"),
+            problem: getValue("5. 변경Para :"),
+            reason: getValue("6. 이전값 :"),
+            action: getValue("7. 변경값 :"),
         };
     }
-    
-    // 2. 모든 비동기 요청을 Promise.all에 담아서 병렬로 처리합니다.
-    const fetchPromises = [
-        // 기존 공유 시트 업로드 요청
-        fetch("https://appendtosheet-ymlfqhclja-uc.a.run.app", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
-        }),
-        // ✅ Power Automate 웹훅으로 보내는 요청 추가
-        // fetch(powerAutomateWebhookUrl, {
-        //     method: "POST",
-        //     headers: { "Content-Type": "application/json" },
-        //     body: JSON.stringify(data),
-        // }),
-        // // ✅ 기존 이메일 전송 요청
-        // sendMailViaGAS(data)
-    ];
 
     const WORKER_BASE = "https://fragrant-band-2b4e.limchickennn.workers.dev";
-
-    const fetchPromises_cloudfareWorker = [
-        // 기존 시트 업로드 요청은 그대로 유지
+    
+    const fetchPromises = [
         fetch("https://appendtosheet-ymlfqhclja-uc.a.run.app", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
         }),
-
-        // ✅ Power Automate → Worker 경유
         fetch(`${WORKER_BASE}/pa`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
         }),
-
-        // ✅ GAS → Worker 경유
-        // fetch(`${WORKER_BASE}/gas`, {
-        //     method: "POST",
-        //     headers: { "Content-Type": "application/json" },
-        //     body: JSON.stringify({
-        //     subject: "PRI L&S 공유(자동 발송)",
-        //     body: JSON.stringify(data, null, 2),
-        //     }),
-        // }),
     ];
 
     try {
-        // 3. 모든 요청이 완료될 때까지 기다림
-        // const [sheetRes, powerAutomateRes, mailRes] = await Promise.all(fetchPromises);
-        // const [sheetRes, powerAutomateRes, mailRes] = await Promise.all(fetchPromises_cloudfareWorker);
-        resultText.innerText += "👉 공유 시트 업로드 중...\n";
-
-        // const [sheetRes, powerAutomateRes] = await Promise.all(fetchPromises_cloudfareWorker);
-        // const [sheetRes, powerAutomateRes] = await Promise.all(fetchPromises);
-        const [sheetRes] = await Promise.all(fetchPromises);
-
-        // 4. 각 요청의 결과를 개별적으로 처리
-        if (sheetRes.ok) {
-            alert("✅ 공유 시트 업로드 성공");
-        } else {
-            const text = await sheetRes.text();
-            alert("❌ 공유 시트 업로드 실패: " + text);
-        }
-
-        // resultText.innerText += "👉 Power Automate 전송 중...\n";
+        // 4. 모든 비동기 요청을 병렬로 실행
+        await Promise.all(fetchPromises);
         
-        // if (powerAutomateRes.ok) {
-        //     alert("✅ Power Automate 웹훅 전송 성공");
-        // } else {
-        //     const text = await powerAutomateRes.text();
-        //     alert("❌ Power Automate 웹훅 전송 실패");
-        // }
+        // 5. 성공 시: 메시지 변경 및 공유 함수 호출
+        alertMessage.innerText = '✅ 공유 시트 업로드 성공!';
+        shareContentWithRetry();
 
-        // if (mailRes.ok) {
-        //     alert("✅ 이메일 공유 완료");
-        //     console.log('메일 발송 완료');
-        // } else {
-        //     console.warn('메일 발송 실패:', mailRes.error);
-        //     alert('⚠️ 이메일 발송 실패: ' + (mailRes.error || 'unknown'));
-        // }
-
-        // 5. 모든 요청이 성공하면 추가 작업을 수행합니다.
-        // if (sheetRes.ok && powerAutomateRes.ok && mailRes.ok) {
-        // if (sheetRes.ok && powerAutomateRes.ok) {
-        if (sheetRes.ok) {
-            shareContentWithRetry(); // 모든 작업 성공 시에만 호출
-        }
-        
     } catch (error) {
+        // 6. 실패 시: 메시지 변경 및 오류 로깅
         console.error("업로드 오류:", error);
-        alert("❌ 업로드 중 오류 발생: " + error.message);
+        alertMessage.innerText = '❌ 업로드 중 오류 발생!';
+
+    } finally {
+        // 7. 일정 시간 후 알림창 숨기고, 버튼 활성화
+        setTimeout(() => {
+            statusAlert.classList.remove('show');
+            uploadButton.disabled = false;
+        }, 5000); // 3초 후에 알림창 숨김
     }
-    }
+}
 
 
 document.getElementById('para-site').addEventListener('change', function () {
@@ -1255,7 +1234,6 @@ document.getElementById('trouble-unit').addEventListener('change', function () {
         assySelect.appendChild(option);
     });
 });
-
 
         // 페이지 로드 시 현재 시간 설정
         window.onload = function() {
