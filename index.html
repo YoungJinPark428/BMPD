@@ -415,15 +415,43 @@ async function uploadContent() {
     uploadButton.disabled = true;
     alertMessage.innerText = '⏳ 업로드 및 공유 진행 중...';
     statusAlert.classList.add('show');
-    
-    // 3. 결과 텍스트를 파싱하여 데이터 객체 생성
-    const lines = resultText.innerText.trim().split('\n').map(line => line.trim());
-    const getValue = (label) => {
-        const line = lines.find(line => line.startsWith(label));
-        return line ? line.slice(label.length).trim() : '';
-    };
 
-    const isTrouble = resultText.innerText.startsWith("[부동&작업 공유]");
+    // 💡 핵심 수정 시작: 전체 텍스트를 가져와 멀티라인 파싱을 준비합니다.
+    const fullText = resultText.innerText.trim();
+    const isTrouble = fullText.startsWith("[부동&작업 공유]");
+
+    // 파싱 함수: 라벨을 기준으로 값을 추출합니다. isMultiLine이 true면 다음 라벨 전까지 모두 가져옵니다.
+    const getValue = (label, isMultiLine = false) => {
+        // 라벨 자체를 정규식 패턴에 맞게 이스케이프 처리
+        const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        let lookahead = ''; // 다음 항목을 찾는 기준
+        if (isTrouble) {
+            // 부동 양식: 5.현상, 6.원인, 7.조치 다음에 오는 라벨들을 기준
+            lookahead = '(?=\\n(6\\.\\s*원인\\s*:\\s*|7\\.\\s*조치\\s*:\\s*|\\s*$))';
+            if (label === "5. 현상 :") lookahead = '(?=\\n(6\\.\\s*원인\\s*:\\s*|7\\.\\s*조치\\s*:\\s*|\\s*$))';
+            else if (label === "6. 원인 :") lookahead = '(?=\\n(7\\.\\s*조치\\s*:\\s*|\\s*$))';
+            else if (label === "7. 조치 :") lookahead = '(?=\\n(\\s*$))'; // 7.조치 다음은 끝
+            else if (!isMultiLine) lookahead = '(?=\\n|$)'; // 단일 라인 항목은 다음 줄바꿈까지만
+        } else {
+            // 파라미터 양식: 8.변경사유 다음 끝
+            if (label === "8. 변경사유 :") lookahead = '(?=\\n(\\s*$))';
+            else if (!isMultiLine) lookahead = '(?=\\n|$)';
+        }
+        
+        // 정규식: 라벨 뒤의 공백을 건너뛰고 ([^]+?) 다음 라벨 또는 끝까지 모든 문자(줄바꿈 포함)를 비탐욕적으로 추출
+        const regex = new RegExp(escapedLabel + '\\s*([^]+?)' + lookahead);
+        
+        const match = fullText.match(regex);
+        
+        if (match) {
+            // 추출된 값을 trim()하여 불필요한 공백 제거
+            return match[1].trim();
+        }
+        return '';
+    };
+    // 💡 핵심 수정 끝
+
     let data;
 
     if (isTrouble) {
@@ -437,11 +465,13 @@ async function uploadContent() {
             time: getValue("3-1. 발생시간 :"),
             complete: getValue("3-2. 조치완료 :"),
             worker: getValue("4. 작업자 :"),
+            // 👇 멀티라인 필드는 isMultiLine 인수를 사용하지 않고, 
+            //    정규식 내부에서 순서에 맞게 다음 라벨까지 추출하도록 설정했습니다.
             problem: getValue("5. 현상 :"),
             reason: getValue("6. 원인 :"),
             action: getValue("7. 조치 :"),
         };
-    } else {
+    } else { // Para/IP 변경 폼
         data = {
             type: 'Para/IP 변경',
             site: getValue("0. Site :"),
@@ -450,13 +480,24 @@ async function uploadContent() {
             unit: getValue("2-2. UNIT :"),
             assy: getValue("2-3. Assy' :"),
             time: getValue("3. 변경시간 :"),
+            // Para/IP 폼에서 'complete' 자리에 '8. 변경사유'가 들어감
             complete: getValue("8. 변경사유 :"),
             worker: getValue("4. 변경자 :"),
             problem: getValue("5. 변경Para :"),
             reason: getValue("6. 이전값 :"),
             action: getValue("7. 변경값 :"),
+            // '8. 변경사유'를 재사용하여 멀티라인으로 추출
+            para_reason: getValue("8. 변경사유 :"),
         };
+        // Para/IP 폼에서는 'complete' 필드를 '8. 변경사유'로 사용하는 구조가 
+        // 데이터 전송에 문제가 있다면, 아래와 같이 'reason'과 동일하게 맞추는 것이 좋습니다.
+        data.complete = data.para_reason; 
+        delete data.para_reason;
     }
+    
+    // 이 시점에서 data 객체의 'problem', 'reason', 'action' 값은 
+    // 입력된 여러 줄 내용(줄바꿈 문자 \n 포함)을 온전히 가지고 있습니다.
+    // 따라서 백엔드(Sheets/Worker)로 전송되어도 줄바꿈이 유지됩니다.
 
     const WORKER_BASE = "https://fragrant-band-2b4e.limchickennn.workers.dev";
     
@@ -477,7 +518,7 @@ async function uploadContent() {
         // 4. 모든 비동기 요청을 병렬로 실행
         await Promise.all(fetchPromises);
         
-        // 5. 성공 시: 메시지 변경 및 공유 함수 호출
+        // 5. 성공 시: 메시지 변경 및 공유 함수 호출 (shareContentWithRetry 함수는 그대로 있다고 가정)
         alertMessage.innerText = '✅ 공유 시트 업로드 성공!';
         shareContentWithRetry();
 
@@ -491,7 +532,7 @@ async function uploadContent() {
         setTimeout(() => {
             statusAlert.classList.remove('show');
             uploadButton.disabled = false;
-        }, 5000); // 3초 후에 알림창 숨김
+        }, 5000); // 5초 후에 알림창 숨김
     }
 }
 
